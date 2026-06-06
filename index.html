@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0">
+    <title>大きくて見やすい！凹凸ぴったり数字マッチング</title>
+    <style>
+        /* 全体のスタイル */
+        body {
+            margin: 0;
+            padding: 0;
+            width: 100vw;
+            height: 100vh;
+            background-color: #f8f9fc;
+            font-family: 'Arial Black', 'Impact', sans-serif;
+            overflow: hidden;
+            position: relative;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        /* ★追加：スタート画面（音声ロック解除用） */
+        #start-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background-color: rgba(255, 255, 255, 0.95);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            z-index: 9999;
+            cursor: pointer;
+        }
+        .start-btn {
+            background-color: #ff8c00;
+            color: white;
+            font-size: 50px;
+            padding: 30px 60px;
+            border-radius: 20px;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+            animation: pulse 1.5s infinite;
+        }
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+
+        /* 画面中央：凹（ターゲット）エリア */
+        .target-container {
+            position: absolute;
+            top: 30%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            display: flex;
+            gap: 30px; 
+        }
+
+        .target {
+            width: 200px; 
+            height: 200px;
+            background-color: #000000;
+            border-radius: 30px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 140px; 
+            font-weight: 900;
+            color: #ffffff;
+            box-shadow: inset 15px 15px 25px rgba(0,0,0,0.9), 
+                        inset -5px -5px 12px rgba(255,255,255,0.15);
+            text-shadow: inset 3px 3px 6px rgba(0,0,0,0.8),
+                         inset -2px -2px 3px rgba(255,255,255,0.2);
+            position: relative;
+            transition: all 0.3s ease;
+        }
+
+        /* 凸側の数字（ピース） */
+        .piece {
+            width: 200px; 
+            height: 200px; 
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 140px; 
+            font-weight: 900;
+            color: #1e3c72; 
+            text-shadow: 
+                0 1px 0 #152b52,
+                0 2px 0 #122445,
+                0 3px 0 #0f1e3a,
+                0 4px 0 #0c182e,
+                0 5px 0 #091223,
+                0 6px 0 #060e1a,
+                0 12px 20px rgba(0, 0, 0, 0.6),
+                0 -3px 4px rgba(255, 255, 255, 0.4);
+            cursor: grab;
+            touch-action: none;
+            position: absolute;
+            z-index: 10;
+            -webkit-tap-highlight-color: transparent;
+            transition: transform 0.1s ease;
+        }
+
+        .piece:active {
+            cursor: grabbing;
+            transform: scale(1.05);
+        }
+
+        .piece.matched {
+            text-shadow: inset 4px 4px 8px rgba(0,0,0,0.8), 
+                         inset -2px -2px 4px rgba(255,255,255,0.3) !important;
+            transform: scale(1) !important;
+        }
+
+        /* 右下リセットボタン */
+        #reset-btn {
+            position: absolute;
+            bottom: 30px;
+            right: 30px;
+            width: 110px;
+            height: 110px;
+            background-color: #ff4d4d;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            font-size: 18px;
+            font-weight: bold;
+            box-shadow: 0 8px 12px rgba(0,0,0,0.3);
+            cursor: pointer;
+            outline: none;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            overflow: hidden;
+            z-index: 100;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        #reset-progress {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 0%;
+            background-color: rgba(0, 0, 0, 0.35);
+            transition: height 0.1s linear;
+        }
+
+        /* おめでとう画面 */
+        #success-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background-color: rgba(255,255,255,0.92);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 100px;
+            font-weight: bold;
+            color: #ff4081;
+            text-shadow: 5px 5px 0px #fff, 9px 9px 0px rgba(0,0,0,0.15);
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.6s ease;
+            z-index: 50;
+        }
+
+        #success-screen.show {
+            opacity: 1;
+            pointer-events: auto;
+        }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+</head>
+<body>
+
+    <div id="start-screen">
+        <div class="start-btn">タップしてスタート</div>
+        <p style="font-size:24px; color:#666; margin-top:20px;">※iPadの音が鳴るように設定を解除します</p>
+    </div>
+
+    <div class="target-container">
+        <div class="target" id="target-1" data-num="1">1</div>
+        <div class="target" id="target-3" data-num="3">3</div>
+        <div class="target" id="target-5" data-num="5">5</div>
+    </div>
+
+    <button id="reset-btn">
+        <div id="reset-progress"></div>
+        <span style="position:relative; z-index:2;">長押し<br>1秒</span>
+    </button>
+
+    <div id="success-screen">おめでとう！</div>
+
+    <script>
+        // --- オーディオ・音声の実装 ---
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+        // ★スタートボタンを押した時に音声を完全に許可する処理
+        document.getElementById('start-screen').addEventListener('pointerdown', () => {
+            // Web Audio (効果音) のロック解除
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+            
+            // Web Speech (読み上げ) のロック解除
+            if ('speechSynthesis' in window) {
+                const silentUtterance = new SpeechSynthesisUtterance('');
+                silentUtterance.volume = 0;
+                window.speechSynthesis.speak(silentUtterance);
+            }
+
+            // スタート画面を消してゲーム初期化
+            document.getElementById('start-screen').style.display = 'none';
+            initGame();
+        });
+
+        // 効果音（正解時）
+        function playCorrectSound() {
+            if (audioCtx.state === 'suspended') return;
+            const now = audioCtx.currentTime;
+            const notes = [523.25, 659.25, 783.99, 1046.50]; 
+            notes.forEach((freq, index) => {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(freq, now + index * 0.07);
+                gain.gain.setValueAtTime(0.2, now + index * 0.07);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + index * 0.07 + 0.4);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start(now + index * 0.07);
+                osc.stop(now + index * 0.07 + 0.4);
+            });
+        }
+
+        // BGM（クリア時）
+        function playHappyMusic() {
+            if (audioCtx.state === 'suspended') return;
+            const now = audioCtx.currentTime;
+            const melody = [523.25, 587.33, 659.25, 698.46, 783.99, 880.00, 987.77, 1046.50];
+            const rhythm = [0, 0.15, 0.3, 0.45, 0.6, 0.75, 0.9, 1.05];
+            melody.forEach((freq, index) => {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(freq, now + rhythm[index]);
+                gain.gain.setValueAtTime(0.2, now + rhythm[index]);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + rhythm[index] + 0.3);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start(now + rhythm[index]);
+                osc.stop(now + rhythm[index] + 0.3);
+            });
+        }
+
+        // 読み上げ（「いち」「さん」「ご」）
+        const readings = { 1: 'いち', 3: 'さん', 5: 'ご' };
+        function speakNumber(num) {
+            if ('speechSynthesis' in window) {
+                window.speechSynthesis.cancel(); // 前の音声を止めてすぐ鳴らす
+                const utterance = new SpeechSynthesisUtterance(readings[num]);
+                utterance.lang = 'ja-JP';
+                utterance.rate = 1.0;
+                utterance.pitch = 1.2;
+                utterance.volume = 1.0;
+                window.speechSynthesis.speak(utterance);
+            }
+        }
+
+        // --- アプリのロジック ---
+        const numbers = [1, 3, 5];
+        const successScreen = document.getElementById('success-screen');
+        let matchedCount = 0;
+
+        function initGame() {
+            document.querySelectorAll('.piece').forEach(p => p.remove());
+            
+            matchedCount = 0;
+            successScreen.classList.remove('show');
+
+            numbers.forEach(num => {
+                const target = document.getElementById(`target-${num}`);
+                target.style.color = '#ffffff';
+                target.style.boxShadow = 'inset 15px 15px 25px rgba(0,0,0,0.9), inset -5px -5px 12px rgba(255,255,255,0.15)';
+            });
+
+            const shuffled = [...numbers].sort(() => Math.random() - 0.5);
+            
+            const step = window.innerWidth / 3;
+            const pieceSize = 200; 
+
+            shuffled.forEach((num, index) => {
+                const piece = document.createElement('div');
+                piece.className = 'piece';
+                piece.innerText = num;
+                piece.dataset.num = num;
+                
+                const initialX = (step * index) + (step - pieceSize) / 2;
+                const initialY = window.innerHeight - pieceSize - 80; 
+
+                piece.style.left = `${initialX}px`;
+                piece.style.top = `${initialY}px`;
+
+                setupDrag(piece, initialX, initialY);
+                document.body.appendChild(piece);
+            });
+        }
+
+        function setupDrag(piece, initX, initY) {
+            let currentX = initX;
+            let currentY = initY;
+            let startX = 0;
+            let startY = 0;
+
+            piece.addEventListener('touchstart', (e) => {
+                const touch = e.touches[0];
+                startX = touch.clientX - currentX;
+                startY = touch.clientY - currentY;
+                piece.style.zIndex = 1000;
+            }, { passive: false });
+
+            piece.addEventListener('touchmove', (e) => {
+                e.preventDefault(); 
+                const touch = e.touches[0];
+                currentX = touch.clientX - startX;
+                currentY = touch.clientY - startY;
+                piece.style.left = `${currentX}px`;
+                piece.style.top = `${currentY}px`;
+            }, { passive: false });
+
+            piece.addEventListener('touchend', () => {
+                piece.style.zIndex = 10;
+                checkMatch(piece, initX, initY, currentX, currentY);
+            });
+
+            // --- PCデバッグ用 ---
+            let isDragging = false;
+            piece.addEventListener('mousedown', (e) => {
+                isDragging = true;
+                startX = e.clientX - currentX;
+                startY = e.clientY - currentY;
+                piece.style.zIndex = 1000;
+            });
+            window.addEventListener('mousemove', (e) => {
+                if (!isDragging) return;
+                currentX = e.clientX - startX;
+                currentY = e.clientY - startY;
+                piece.style.left = `${currentX}px`;
+                piece.style.top = `${currentY}px`;
+            });
+            window.addEventListener('mouseup', () => {
+                if (!isDragging) return;
+                isDragging = false;
+                piece.style.zIndex = 10;
+                checkMatch(piece, initX, initY, currentX, currentY);
+            });
+        }
+
+        function checkMatch(piece, initX, initY, currentX, currentY) {
+            const num = piece.dataset.num;
+            const target = document.getElementById(`target-${num}`);
+            
+            const pRect = piece.getBoundingClientRect();
+            const tRect = target.getBoundingClientRect();
+
+            const pCenterX = pRect.left + pRect.width / 2;
+            const pCenterY = pRect.top + pRect.height / 2;
+            const tCenterX = tRect.left + tRect.width / 2;
+            const tCenterY = tRect.top + tRect.height / 2;
+
+            const distance = Math.sqrt(Math.pow(pCenterX - tCenterX, 2) + Math.pow(pCenterY - tCenterY, 2));
+
+            if (distance < 100) {
+                piece.style.left = `${tRect.left}px`;
+                piece.style.top = `${tRect.top}px`;
+                piece.style.pointerEvents = 'none'; 
+                
+                piece.classList.add('matched');
+                target.style.color = 'transparent';
+                target.style.boxShadow = 'inset 15px 15px 25px rgba(0,0,0,0.9), 0 0 20px rgba(255, 215, 0, 0.4)';
+                
+                // ★ここで音声を再生！
+                speakNumber(num);
+                playCorrectSound();
+                
+                matchedCount++;
+
+                if (matchedCount === 3) {
+                    setTimeout(showSuccess, 1000);
+                }
+            } else {
+                piece.style.transition = 'left 0.25s ease, top 0.25s ease';
+                piece.style.left = `${initX}px`;
+                piece.style.top = `${initY}px`;
+                
+                setTimeout(() => {
+                    piece.style.transition = 'transform 0.1s ease';
+                    setupDrag(piece, initX, initY);
+                }, 250);
+            }
+        }
+
+        function showSuccess() {
+            successScreen.classList.add('show');
+            playHappyMusic();
+            
+            var duration = 4.0 * 1000;
+            var end = Date.now() + duration;
+            (function frame() {
+                confetti({ particleCount: 7, angle: 60, spread: 65, origin: { x: 0, y: 0.8 } });
+                confetti({ particleCount: 7, angle: 120, spread: 65, origin: { x: 1, y: 0.8 } });
+                if (Date.now() < end) requestAnimationFrame(frame);
+            }());
+        }
+
+        // --- 1秒長押しリセットボタン ---
+        const resetBtn = document.getElementById('reset-btn');
+        const resetProgress = document.getElementById('reset-progress');
+        let resetTimer, progressInterval, progressHeight = 0;
+
+        function startReset() {
+            progressHeight = 0;
+            resetProgress.style.height = '0%';
+            resetTimer = setTimeout(() => {
+                initGame();
+                endReset();
+            }, 1000);
+
+            progressInterval = setInterval(() => {
+                progressHeight += 10;
+                if (progressHeight <= 100) resetProgress.style.height = `${progressHeight}%`;
+            }, 100);
+        }
+
+        function endReset() {
+            clearTimeout(resetTimer);
+            clearInterval(progressInterval);
+            resetProgress.style.height = '0%';
+        }
+
+        resetBtn.addEventListener('touchstart', (e) => { e.preventDefault(); startReset(); }, { passive: false });
+        resetBtn.addEventListener('touchend', endReset);
+        resetBtn.addEventListener('touchcancel', endReset);
+        resetBtn.addEventListener('mousedown', startReset);
+        resetBtn.addEventListener('mouseup', endReset);
+        resetBtn.addEventListener('mouseleave', endReset);
+
+        window.addEventListener('resize', () => {
+            // スタート画面が消えている場合のみ再配置
+            if (document.getElementById('start-screen').style.display === 'none') {
+                initGame();
+            }
+        });
+        
+    </script>
+</body>
+</html>
