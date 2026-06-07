@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0">
     <title>大きくて見やすい！凹凸ぴったり数字マッチング</title>
+
     <style>
-        /* 全体のスタイル */
         body {
             margin: 0;
             padding: 0;
@@ -19,7 +19,6 @@
             -webkit-user-select: none;
         }
 
-        /* ★追加：スタート画面（音声ロック解除用） */
         #start-screen {
             position: fixed;
             top: 0;
@@ -34,6 +33,7 @@
             z-index: 9999;
             cursor: pointer;
         }
+
         .start-btn {
             background-color: #ff8c00;
             color: white;
@@ -42,53 +42,53 @@
             border-radius: 20px;
             box-shadow: 0 10px 20px rgba(0,0,0,0.2);
             animation: pulse 1.5s infinite;
+            text-align: center;
+            line-height: 1.3;
         }
+
         @keyframes pulse {
             0% { transform: scale(1); }
             50% { transform: scale(1.05); }
             100% { transform: scale(1); }
         }
 
-        /* 画面中央：凹（ターゲット）エリア */
         .target-container {
             position: absolute;
             top: 30%;
             left: 50%;
             transform: translate(-50%, -50%);
             display: flex;
-            gap: 30px; 
+            gap: 30px;
         }
 
         .target {
-            width: 200px; 
+            width: 200px;
             height: 200px;
             background-color: #000000;
             border-radius: 30px;
             display: flex;
             justify-content: center;
             align-items: center;
-            font-size: 140px; 
+            font-size: 140px;
             font-weight: 900;
             color: #ffffff;
-            box-shadow: inset 15px 15px 25px rgba(0,0,0,0.9), 
-                        inset -5px -5px 12px rgba(255,255,255,0.15);
-            text-shadow: inset 3px 3px 6px rgba(0,0,0,0.8),
-                         inset -2px -2px 3px rgba(255,255,255,0.2);
+            box-shadow:
+                inset 15px 15px 25px rgba(0,0,0,0.9),
+                inset -5px -5px 12px rgba(255,255,255,0.15);
             position: relative;
             transition: all 0.3s ease;
         }
 
-        /* 凸側の数字（ピース） */
         .piece {
-            width: 200px; 
-            height: 200px; 
+            width: 200px;
+            height: 200px;
             display: flex;
             justify-content: center;
             align-items: center;
-            font-size: 140px; 
+            font-size: 140px;
             font-weight: 900;
-            color: #1e3c72; 
-            text-shadow: 
+            color: #1e3c72;
+            text-shadow:
                 0 1px 0 #152b52,
                 0 2px 0 #122445,
                 0 3px 0 #0f1e3a,
@@ -111,12 +111,9 @@
         }
 
         .piece.matched {
-            text-shadow: inset 4px 4px 8px rgba(0,0,0,0.8), 
-                         inset -2px -2px 4px rgba(255,255,255,0.3) !important;
             transform: scale(1) !important;
         }
 
-        /* 右下リセットボタン */
         #reset-btn {
             position: absolute;
             bottom: 30px;
@@ -151,7 +148,6 @@
             transition: height 0.1s linear;
         }
 
-        /* おめでとう画面 */
         #success-screen {
             position: fixed;
             top: 0;
@@ -165,7 +161,9 @@
             font-size: 100px;
             font-weight: bold;
             color: #ff4081;
-            text-shadow: 5px 5px 0px #fff, 9px 9px 0px rgba(0,0,0,0.15);
+            text-shadow:
+                5px 5px 0px #fff,
+                9px 9px 0px rgba(0,0,0,0.15);
             opacity: 0;
             pointer-events: none;
             transition: opacity 0.6s ease;
@@ -177,13 +175,14 @@
             pointer-events: auto;
         }
     </style>
+
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
 </head>
+
 <body>
 
     <div id="start-screen">
-        <div class="start-btn">タップしてスタート</div>
-        <p style="font-size:24px; color:#666; margin-top:20px;">※iPadの音が鳴るように設定を解除します</p>
+        <div class="start-btn">タップして<br>スタート</div>
     </div>
 
     <div class="target-container">
@@ -200,111 +199,162 @@
     <div id="success-screen">おめでとう！</div>
 
     <script>
-        // --- オーディオ・音声の実装 ---
+        // ==========================================
+        // 基本設定
+        // ==========================================
+        const numbers = [1, 3, 5];
+        const successScreen = document.getElementById('success-screen');
+        let matchedCount = 0;
+
+        // ==========================================
+        // 音声ファイル設定
+        // GitHub Pages上の音声ファイルを直接指定
+        // ==========================================
+        const audioFiles = {
+            1: 'https://icoaplus.github.io/number-matching-1-3-5/num001_02_01.wav',
+            3: 'https://icoaplus.github.io/number-matching-1-3-5/num003_02_01.wav',
+            5: 'https://icoaplus.github.io/number-matching-1-3-5/num005_02_01.wav'
+        };
+
+        // ==========================================
+        // 効果音用 Web Audio API
+        // ==========================================
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 
-        // ★スタートボタンを押した時に音声を完全に許可する処理
-        document.getElementById('start-screen').addEventListener('pointerdown', () => {
-            // Web Audio (効果音) のロック解除
+        // ==========================================
+        // スタート画面
+        // ==========================================
+        document.getElementById('start-screen').addEventListener('pointerdown', async () => {
             if (audioCtx.state === 'suspended') {
-                audioCtx.resume();
-            }
-            
-            // Web Speech (読み上げ) のロック解除
-            if ('speechSynthesis' in window) {
-                const silentUtterance = new SpeechSynthesisUtterance('');
-                silentUtterance.volume = 0;
-                window.speechSynthesis.speak(silentUtterance);
+                await audioCtx.resume();
             }
 
-            // スタート画面を消してゲーム初期化
+            // 音声ファイルを軽く読み込んでおく
+            preloadVoiceFiles();
+
             document.getElementById('start-screen').style.display = 'none';
             initGame();
         });
 
-        // 効果音（正解時）
+        // ==========================================
+        // 音声ファイルを事前読み込み
+        // ==========================================
+        function preloadVoiceFiles() {
+            Object.values(audioFiles).forEach(file => {
+                const audio = new Audio(file);
+                audio.preload = 'auto';
+                audio.load();
+            });
+        }
+
+        // ==========================================
+        // 録音した数字の音声を再生
+        // ==========================================
+        function speakNumber(num) {
+            const file = audioFiles[num];
+
+            if (!file) {
+                console.error('音声ファイルが見つかりません:', num);
+                return;
+            }
+
+            const audio = new Audio(file);
+            audio.preload = 'auto';
+            audio.volume = 1.0;
+            audio.currentTime = 0;
+
+            audio.play()
+                .then(() => {
+                    console.log('音声再生成功:', file);
+                })
+                .catch(error => {
+                    console.error('音声再生エラー:', file, error);
+                });
+        }
+
+        // ==========================================
+        // 正解音
+        // ==========================================
         function playCorrectSound() {
             if (audioCtx.state === 'suspended') return;
+
             const now = audioCtx.currentTime;
-            const notes = [523.25, 659.25, 783.99, 1046.50]; 
+            const notes = [523.25, 659.25, 783.99, 1046.50];
+
             notes.forEach((freq, index) => {
                 const osc = audioCtx.createOscillator();
                 const gain = audioCtx.createGain();
+
                 osc.type = 'sine';
                 osc.frequency.setValueAtTime(freq, now + index * 0.07);
+
                 gain.gain.setValueAtTime(0.2, now + index * 0.07);
                 gain.gain.exponentialRampToValueAtTime(0.001, now + index * 0.07 + 0.4);
+
                 osc.connect(gain);
                 gain.connect(audioCtx.destination);
+
                 osc.start(now + index * 0.07);
                 osc.stop(now + index * 0.07 + 0.4);
             });
         }
 
-        // BGM（クリア時）
+        // ==========================================
+        // クリア時の音楽
+        // ==========================================
         function playHappyMusic() {
             if (audioCtx.state === 'suspended') return;
+
             const now = audioCtx.currentTime;
             const melody = [523.25, 587.33, 659.25, 698.46, 783.99, 880.00, 987.77, 1046.50];
             const rhythm = [0, 0.15, 0.3, 0.45, 0.6, 0.75, 0.9, 1.05];
+
             melody.forEach((freq, index) => {
                 const osc = audioCtx.createOscillator();
                 const gain = audioCtx.createGain();
+
                 osc.type = 'triangle';
                 osc.frequency.setValueAtTime(freq, now + rhythm[index]);
+
                 gain.gain.setValueAtTime(0.2, now + rhythm[index]);
                 gain.gain.exponentialRampToValueAtTime(0.001, now + rhythm[index] + 0.3);
+
                 osc.connect(gain);
                 gain.connect(audioCtx.destination);
+
                 osc.start(now + rhythm[index]);
                 osc.stop(now + rhythm[index] + 0.3);
             });
         }
 
-        // 読み上げ（「いち」「さん」「ご」）
-        const readings = { 1: 'いち', 3: 'さん', 5: 'ご' };
-        function speakNumber(num) {
-            if ('speechSynthesis' in window) {
-                window.speechSynthesis.cancel(); // 前の音声を止めてすぐ鳴らす
-                const utterance = new SpeechSynthesisUtterance(readings[num]);
-                utterance.lang = 'ja-JP';
-                utterance.rate = 1.0;
-                utterance.pitch = 1.2;
-                utterance.volume = 1.0;
-                window.speechSynthesis.speak(utterance);
-            }
-        }
-
-        // --- アプリのロジック ---
-        const numbers = [1, 3, 5];
-        const successScreen = document.getElementById('success-screen');
-        let matchedCount = 0;
-
+        // ==========================================
+        // ゲーム初期化
+        // ==========================================
         function initGame() {
-            document.querySelectorAll('.piece').forEach(p => p.remove());
-            
+            document.querySelectorAll('.piece').forEach(piece => piece.remove());
+
             matchedCount = 0;
             successScreen.classList.remove('show');
 
             numbers.forEach(num => {
                 const target = document.getElementById(`target-${num}`);
                 target.style.color = '#ffffff';
-                target.style.boxShadow = 'inset 15px 15px 25px rgba(0,0,0,0.9), inset -5px -5px 12px rgba(255,255,255,0.15)';
+                target.style.boxShadow =
+                    'inset 15px 15px 25px rgba(0,0,0,0.9), inset -5px -5px 12px rgba(255,255,255,0.15)';
             });
 
             const shuffled = [...numbers].sort(() => Math.random() - 0.5);
-            
             const step = window.innerWidth / 3;
-            const pieceSize = 200; 
+            const pieceSize = 200;
 
             shuffled.forEach((num, index) => {
                 const piece = document.createElement('div');
                 piece.className = 'piece';
                 piece.innerText = num;
                 piece.dataset.num = num;
-                
+
                 const initialX = (step * index) + (step - pieceSize) / 2;
-                const initialY = window.innerHeight - pieceSize - 80; 
+                const initialY = window.innerHeight - pieceSize - 80;
 
                 piece.style.left = `${initialX}px`;
                 piece.style.top = `${initialY}px`;
@@ -314,26 +364,40 @@
             });
         }
 
+        // ==========================================
+        // ドラッグ操作
+        // ==========================================
         function setupDrag(piece, initX, initY) {
             let currentX = initX;
             let currentY = initY;
             let startX = 0;
             let startY = 0;
+            let isDragging = false;
 
+            function movePiece(x, y) {
+                currentX = x - startX;
+                currentY = y - startY;
+
+                piece.style.left = `${currentX}px`;
+                piece.style.top = `${currentY}px`;
+            }
+
+            // タッチ操作
             piece.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+
                 const touch = e.touches[0];
                 startX = touch.clientX - currentX;
                 startY = touch.clientY - currentY;
+
                 piece.style.zIndex = 1000;
             }, { passive: false });
 
             piece.addEventListener('touchmove', (e) => {
-                e.preventDefault(); 
+                e.preventDefault();
+
                 const touch = e.touches[0];
-                currentX = touch.clientX - startX;
-                currentY = touch.clientY - startY;
-                piece.style.left = `${currentX}px`;
-                piece.style.top = `${currentY}px`;
+                movePiece(touch.clientX, touch.clientY);
             }, { passive: false });
 
             piece.addEventListener('touchend', () => {
@@ -341,33 +405,38 @@
                 checkMatch(piece, initX, initY, currentX, currentY);
             });
 
-            // --- PCデバッグ用 ---
-            let isDragging = false;
+            // マウス操作
             piece.addEventListener('mousedown', (e) => {
                 isDragging = true;
+
                 startX = e.clientX - currentX;
                 startY = e.clientY - currentY;
+
                 piece.style.zIndex = 1000;
             });
+
             window.addEventListener('mousemove', (e) => {
                 if (!isDragging) return;
-                currentX = e.clientX - startX;
-                currentY = e.clientY - startY;
-                piece.style.left = `${currentX}px`;
-                piece.style.top = `${currentY}px`;
+                movePiece(e.clientX, e.clientY);
             });
+
             window.addEventListener('mouseup', () => {
                 if (!isDragging) return;
+
                 isDragging = false;
                 piece.style.zIndex = 10;
+
                 checkMatch(piece, initX, initY, currentX, currentY);
             });
         }
 
+        // ==========================================
+        // 正解判定
+        // ==========================================
         function checkMatch(piece, initX, initY, currentX, currentY) {
             const num = piece.dataset.num;
             const target = document.getElementById(`target-${num}`);
-            
+
             const pRect = piece.getBoundingClientRect();
             const tRect = target.getBoundingClientRect();
 
@@ -376,59 +445,90 @@
             const tCenterX = tRect.left + tRect.width / 2;
             const tCenterY = tRect.top + tRect.height / 2;
 
-            const distance = Math.sqrt(Math.pow(pCenterX - tCenterX, 2) + Math.pow(pCenterY - tCenterY, 2));
+            const distance = Math.sqrt(
+                Math.pow(pCenterX - tCenterX, 2) +
+                Math.pow(pCenterY - tCenterY, 2)
+            );
 
             if (distance < 100) {
+                // 正解位置に置く
                 piece.style.left = `${tRect.left}px`;
                 piece.style.top = `${tRect.top}px`;
-                piece.style.pointerEvents = 'none'; 
-                
+                piece.style.pointerEvents = 'none';
                 piece.classList.add('matched');
+
+                // 凹側の数字を消す
                 target.style.color = 'transparent';
-                target.style.boxShadow = 'inset 15px 15px 25px rgba(0,0,0,0.9), 0 0 20px rgba(255, 215, 0, 0.4)';
-                
-                // ★ここで音声を再生！
+                target.style.boxShadow =
+                    'inset 15px 15px 25px rgba(0,0,0,0.9), 0 0 20px rgba(255, 215, 0, 0.4)';
+
+                // 声と正解音を鳴らす
                 speakNumber(num);
                 playCorrectSound();
-                
+
                 matchedCount++;
 
-                if (matchedCount === 3) {
+                if (matchedCount === numbers.length) {
                     setTimeout(showSuccess, 1000);
                 }
+
             } else {
+                // 間違えたら元に戻る
                 piece.style.transition = 'left 0.25s ease, top 0.25s ease';
                 piece.style.left = `${initX}px`;
                 piece.style.top = `${initY}px`;
-                
+
                 setTimeout(() => {
                     piece.style.transition = 'transform 0.1s ease';
-                    setupDrag(piece, initX, initY);
                 }, 250);
             }
         }
 
+        // ==========================================
+        // クリア画面
+        // ==========================================
         function showSuccess() {
             successScreen.classList.add('show');
             playHappyMusic();
-            
-            var duration = 4.0 * 1000;
-            var end = Date.now() + duration;
+
+            const duration = 4.0 * 1000;
+            const end = Date.now() + duration;
+
             (function frame() {
-                confetti({ particleCount: 7, angle: 60, spread: 65, origin: { x: 0, y: 0.8 } });
-                confetti({ particleCount: 7, angle: 120, spread: 65, origin: { x: 1, y: 0.8 } });
-                if (Date.now() < end) requestAnimationFrame(frame);
+                confetti({
+                    particleCount: 7,
+                    angle: 60,
+                    spread: 65,
+                    origin: { x: 0, y: 0.8 }
+                });
+
+                confetti({
+                    particleCount: 7,
+                    angle: 120,
+                    spread: 65,
+                    origin: { x: 1, y: 0.8 }
+                });
+
+                if (Date.now() < end) {
+                    requestAnimationFrame(frame);
+                }
             }());
         }
 
-        // --- 1秒長押しリセットボタン ---
+        // ==========================================
+        // リセットボタン 長押し
+        // ==========================================
         const resetBtn = document.getElementById('reset-btn');
         const resetProgress = document.getElementById('reset-progress');
-        let resetTimer, progressInterval, progressHeight = 0;
+
+        let resetTimer;
+        let progressInterval;
+        let progressHeight = 0;
 
         function startReset() {
             progressHeight = 0;
             resetProgress.style.height = '0%';
+
             resetTimer = setTimeout(() => {
                 initGame();
                 endReset();
@@ -436,7 +536,10 @@
 
             progressInterval = setInterval(() => {
                 progressHeight += 10;
-                if (progressHeight <= 100) resetProgress.style.height = `${progressHeight}%`;
+
+                if (progressHeight <= 100) {
+                    resetProgress.style.height = `${progressHeight}%`;
+                }
             }, 100);
         }
 
@@ -446,20 +549,24 @@
             resetProgress.style.height = '0%';
         }
 
-        resetBtn.addEventListener('touchstart', (e) => { e.preventDefault(); startReset(); }, { passive: false });
+        resetBtn.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            startReset();
+        }, { passive: false });
+
         resetBtn.addEventListener('touchend', endReset);
         resetBtn.addEventListener('touchcancel', endReset);
+
         resetBtn.addEventListener('mousedown', startReset);
         resetBtn.addEventListener('mouseup', endReset);
         resetBtn.addEventListener('mouseleave', endReset);
 
+        // 画面サイズが変わったら並べ直す
         window.addEventListener('resize', () => {
-            // スタート画面が消えている場合のみ再配置
             if (document.getElementById('start-screen').style.display === 'none') {
                 initGame();
             }
         });
-        
     </script>
 </body>
 </html>
