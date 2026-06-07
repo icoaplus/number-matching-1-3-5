@@ -87,22 +87,58 @@
             align-items: center;
             font-size: 140px;
             font-weight: 900;
-            color: #1e3c72;
-            /* 修正ポイント：黒い影を消し、厚みと光沢だけを残して立体感を表現 */
-            text-shadow:
-                0 1px 0 #152b52,
-                0 2px 0 #122445,
-                0 3px 0 #0f1e3a,
-                0 4px 0 #0c182e,
-                0 5px 0 #091223,
-                0 6px 0 #060e1a,
-                0 -2px 3px rgba(255, 255, 255, 0.5); /* 上部の光沢（ハイライト） */
             cursor: grab;
             touch-action: none;
             position: absolute;
             z-index: 10;
             -webkit-tap-highlight-color: transparent;
             transition: transform 0.1s ease;
+
+            /* 立体感を強くする（影なし） */
+            color: transparent;
+            background:
+                linear-gradient(
+                    to bottom,
+                    #ffffff 0%,
+                    #eaf5ff 8%,
+                    #cfe7ff 18%,
+                    #9fcbff 32%,
+                    #6eabf0 48%,
+                    #4d8ddb 62%,
+                    #2f6fbe 78%,
+                    #1f4f95 100%
+                );
+            -webkit-background-clip: text;
+            background-clip: text;
+
+            /* 濃い縁取りで厚み感を出す */
+            -webkit-text-stroke: 4px #1d4c8f;
+
+            /* 細い明るいラインで上面のハイライト感 */
+            position: absolute;
+        }
+
+        /* 上側のハイライトを疑似的に強める */
+        .piece::after {
+            content: attr(data-num);
+            position: absolute;
+            inset: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 140px;
+            font-weight: 900;
+            color: transparent;
+            background: linear-gradient(
+                to bottom,
+                rgba(255,255,255,0.95) 0%,
+                rgba(255,255,255,0.75) 12%,
+                rgba(255,255,255,0.2) 26%,
+                rgba(255,255,255,0) 40%
+            );
+            -webkit-background-clip: text;
+            background-clip: text;
+            pointer-events: none;
         }
 
         .piece:active {
@@ -112,6 +148,44 @@
 
         .piece.matched {
             transform: scale(1) !important;
+            color: transparent;
+            background:
+                linear-gradient(
+                    to bottom,
+                    #ffffff 0%,
+                    #eaf5ff 8%,
+                    #cfe7ff 18%,
+                    #9fcbff 32%,
+                    #6eabf0 48%,
+                    #4d8ddb 62%,
+                    #2f6fbe 78%,
+                    #1f4f95 100%
+                );
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-stroke: 4px #1d4c8f;
+        }
+
+        .piece.matched::after {
+            content: attr(data-num);
+            position: absolute;
+            inset: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 140px;
+            font-weight: 900;
+            color: transparent;
+            background: linear-gradient(
+                to bottom,
+                rgba(255,255,255,0.95) 0%,
+                rgba(255,255,255,0.75) 12%,
+                rgba(255,255,255,0.2) 26%,
+                rgba(255,255,255,0) 40%
+            );
+            -webkit-background-clip: text;
+            background-clip: text;
+            pointer-events: none;
         }
 
         #reset-btn {
@@ -215,9 +289,6 @@
             5: 'https://icoaplus.github.io/number-matching-1-3-5/num005_02_01.wav'
         };
 
-        // 音声を事前に読み込むための入れ物
-        const preloadedAudios = {};
-
         // ==========================================
         // スタート画面
         // ==========================================
@@ -236,7 +307,6 @@
                 const audio = new Audio(audioFiles[num]);
                 audio.preload = 'auto';
                 audio.load();
-                preloadedAudios[num] = audio;
             });
         }
 
@@ -251,7 +321,6 @@
                 return;
             }
 
-            // 毎回新しく作るとiPadでも安定しやすい
             const audio = new Audio(file);
             audio.preload = 'auto';
             audio.volume = 1.0;
@@ -262,4 +331,243 @@
                     console.log('用意した音声を再生しました:', file);
                 })
                 .catch(error => {
-                    console
+                    console.error('音声再生エラー:', file, error);
+                });
+        }
+
+        // ==========================================
+        // ゲーム初期化
+        // ==========================================
+        function initGame() {
+            document.querySelectorAll('.piece').forEach(piece => piece.remove());
+
+            matchedCount = 0;
+            successScreen.classList.remove('show');
+
+            numbers.forEach(num => {
+                const target = document.getElementById(`target-${num}`);
+                target.style.color = '#ffffff';
+                target.style.boxShadow =
+                    'inset 15px 15px 25px rgba(0,0,0,0.9), inset -5px -5px 12px rgba(255,255,255,0.15)';
+            });
+
+            const shuffled = [...numbers].sort(() => Math.random() - 0.5);
+            const step = window.innerWidth / 3;
+            const pieceSize = 200;
+
+            shuffled.forEach((num, index) => {
+                const piece = document.createElement('div');
+                piece.className = 'piece';
+                piece.innerText = num;
+                piece.dataset.num = num;
+
+                const initialX = (step * index) + (step - pieceSize) / 2;
+                const initialY = window.innerHeight - pieceSize - 80;
+
+                piece.style.left = `${initialX}px`;
+                piece.style.top = `${initialY}px`;
+
+                setupDrag(piece, initialX, initialY);
+                document.body.appendChild(piece);
+            });
+        }
+
+        // ==========================================
+        // ドラッグ操作
+        // ==========================================
+        function setupDrag(piece, initX, initY) {
+            let currentX = initX;
+            let currentY = initY;
+            let startX = 0;
+            let startY = 0;
+            let isDragging = false;
+
+            function movePiece(x, y) {
+                currentX = x - startX;
+                currentY = y - startY;
+
+                piece.style.left = `${currentX}px`;
+                piece.style.top = `${currentY}px`;
+            }
+
+            // タッチ操作
+            piece.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+
+                const touch = e.touches[0];
+                startX = touch.clientX - currentX;
+                startY = touch.clientY - currentY;
+
+                piece.style.zIndex = 1000;
+            }, { passive: false });
+
+            piece.addEventListener('touchmove', (e) => {
+                e.preventDefault();
+
+                const touch = e.touches[0];
+                movePiece(touch.clientX, touch.clientY);
+            }, { passive: false });
+
+            piece.addEventListener('touchend', () => {
+                piece.style.zIndex = 10;
+                checkMatch(piece, initX, initY);
+            });
+
+            // マウス操作
+            piece.addEventListener('mousedown', (e) => {
+                isDragging = true;
+
+                startX = e.clientX - currentX;
+                startY = e.clientY - currentY;
+
+                piece.style.zIndex = 1000;
+            });
+
+            window.addEventListener('mousemove', (e) => {
+                if (!isDragging) return;
+                movePiece(e.clientX, e.clientY);
+            });
+
+            window.addEventListener('mouseup', () => {
+                if (!isDragging) return;
+
+                isDragging = false;
+                piece.style.zIndex = 10;
+
+                checkMatch(piece, initX, initY);
+            });
+        }
+
+        // ==========================================
+        // 正解判定
+        // ==========================================
+        function checkMatch(piece, initX, initY) {
+            const num = Number(piece.dataset.num);
+            const target = document.getElementById(`target-${num}`);
+
+            const pRect = piece.getBoundingClientRect();
+            const tRect = target.getBoundingClientRect();
+
+            const pCenterX = pRect.left + pRect.width / 2;
+            const pCenterY = pRect.top + pRect.height / 2;
+            const tCenterX = tRect.left + tRect.width / 2;
+            const tCenterY = tRect.top + tRect.height / 2;
+
+            const distance = Math.sqrt(
+                Math.pow(pCenterX - tCenterX, 2) +
+                Math.pow(pCenterY - tCenterY, 2)
+            );
+
+            if (distance < 100) {
+                piece.style.left = `${tRect.left}px`;
+                piece.style.top = `${tRect.top}px`;
+                piece.style.pointerEvents = 'none';
+                piece.classList.add('matched');
+
+                target.style.color = 'transparent';
+                target.style.boxShadow =
+                    'inset 15px 15px 25px rgba(0,0,0,0.9), 0 0 20px rgba(255, 215, 0, 0.4)';
+
+                speakNumber(num);
+
+                matchedCount++;
+
+                if (matchedCount === numbers.length) {
+                    setTimeout(showSuccess, 1000);
+                }
+
+            } else {
+                piece.style.transition = 'left 0.25s ease, top 0.25s ease';
+                piece.style.left = `${initX}px`;
+                piece.style.top = `${initY}px`;
+
+                setTimeout(() => {
+                    piece.style.transition = 'transform 0.1s ease';
+                }, 250);
+            }
+        }
+
+        // ==========================================
+        // クリア画面
+        // ==========================================
+        function showSuccess() {
+            successScreen.classList.add('show');
+
+            const duration = 4.0 * 1000;
+            const end = Date.now() + duration;
+
+            (function frame() {
+                confetti({
+                    particleCount: 7,
+                    angle: 60,
+                    spread: 65,
+                    origin: { x: 0, y: 0.8 }
+                });
+
+                confetti({
+                    particleCount: 7,
+                    angle: 120,
+                    spread: 65,
+                    origin: { x: 1, y: 0.8 }
+                });
+
+                if (Date.now() < end) {
+                    requestAnimationFrame(frame);
+                }
+            }());
+        }
+
+        // ==========================================
+        // リセットボタン 長押し
+        // ==========================================
+        const resetBtn = document.getElementById('reset-btn');
+        const resetProgress = document.getElementById('reset-progress');
+
+        let resetTimer;
+        let progressInterval;
+        let progressHeight = 0;
+
+        function startReset() {
+            progressHeight = 0;
+            resetProgress.style.height = '0%';
+
+            resetTimer = setTimeout(() => {
+                initGame();
+                endReset();
+            }, 1000);
+
+            progressInterval = setInterval(() => {
+                progressHeight += 10;
+
+                if (progressHeight <= 100) {
+                    resetProgress.style.height = `${progressHeight}%`;
+                }
+            }, 100);
+        }
+
+        function endReset() {
+            clearTimeout(resetTimer);
+            clearInterval(progressInterval);
+            resetProgress.style.height = '0%';
+        }
+
+        resetBtn.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            startReset();
+        }, { passive: false });
+
+        resetBtn.addEventListener('touchend', endReset);
+        resetBtn.addEventListener('touchcancel', endReset);
+
+        resetBtn.addEventListener('mousedown', startReset);
+        resetBtn.addEventListener('mouseup', endReset);
+        resetBtn.addEventListener('mouseleave', endReset);
+
+        window.addEventListener('resize', () => {
+            if (document.getElementById('start-screen').style.display === 'none') {
+                initGame();
+            }
+        });
+    </script>
+</body>
+</html>
