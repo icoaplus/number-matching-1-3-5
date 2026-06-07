@@ -94,31 +94,25 @@
             -webkit-tap-highlight-color: transparent;
             transition: transform 0.1s ease;
 
-            /* 立体感を強くする（影なし） */
+            /* 強めの立体感。影は使わない */
             color: transparent;
             background:
                 linear-gradient(
                     to bottom,
                     #ffffff 0%,
-                    #eaf5ff 8%,
-                    #cfe7ff 18%,
-                    #9fcbff 32%,
-                    #6eabf0 48%,
-                    #4d8ddb 62%,
+                    #eef8ff 8%,
+                    #cfe8ff 18%,
+                    #9fd0ff 32%,
+                    #6dadf2 48%,
+                    #4d8ddd 62%,
                     #2f6fbe 78%,
-                    #1f4f95 100%
+                    #1b4a8f 100%
                 );
             -webkit-background-clip: text;
             background-clip: text;
-
-            /* 濃い縁取りで厚み感を出す */
             -webkit-text-stroke: 4px #1d4c8f;
-
-            /* 細い明るいラインで上面のハイライト感 */
-            position: absolute;
         }
 
-        /* 上側のハイライトを疑似的に強める */
         .piece::after {
             content: attr(data-num);
             position: absolute;
@@ -129,13 +123,14 @@
             font-size: 140px;
             font-weight: 900;
             color: transparent;
-            background: linear-gradient(
-                to bottom,
-                rgba(255,255,255,0.95) 0%,
-                rgba(255,255,255,0.75) 12%,
-                rgba(255,255,255,0.2) 26%,
-                rgba(255,255,255,0) 40%
-            );
+            background:
+                linear-gradient(
+                    to bottom,
+                    rgba(255,255,255,1) 0%,
+                    rgba(255,255,255,0.8) 12%,
+                    rgba(255,255,255,0.25) 26%,
+                    rgba(255,255,255,0) 42%
+                );
             -webkit-background-clip: text;
             background-clip: text;
             pointer-events: none;
@@ -148,22 +143,6 @@
 
         .piece.matched {
             transform: scale(1) !important;
-            color: transparent;
-            background:
-                linear-gradient(
-                    to bottom,
-                    #ffffff 0%,
-                    #eaf5ff 8%,
-                    #cfe7ff 18%,
-                    #9fcbff 32%,
-                    #6eabf0 48%,
-                    #4d8ddb 62%,
-                    #2f6fbe 78%,
-                    #1f4f95 100%
-                );
-            -webkit-background-clip: text;
-            background-clip: text;
-            -webkit-text-stroke: 4px #1d4c8f;
         }
 
         .piece.matched::after {
@@ -176,13 +155,14 @@
             font-size: 140px;
             font-weight: 900;
             color: transparent;
-            background: linear-gradient(
-                to bottom,
-                rgba(255,255,255,0.95) 0%,
-                rgba(255,255,255,0.75) 12%,
-                rgba(255,255,255,0.2) 26%,
-                rgba(255,255,255,0) 40%
-            );
+            background:
+                linear-gradient(
+                    to bottom,
+                    rgba(255,255,255,1) 0%,
+                    rgba(255,255,255,0.8) 12%,
+                    rgba(255,255,255,0.25) 26%,
+                    rgba(255,255,255,0) 42%
+                );
             -webkit-background-clip: text;
             background-clip: text;
             pointer-events: none;
@@ -291,13 +271,27 @@
 
         // ==========================================
         // スタート画面
+        // PCクリック・タッチ両方に対応
         // ==========================================
-        document.getElementById('start-screen').addEventListener('pointerdown', () => {
+        const startScreen = document.getElementById('start-screen');
+        let hasStarted = false;
+
+        function startGame() {
+            if (hasStarted) return;
+            hasStarted = true;
+
             preloadVoiceFiles();
 
-            document.getElementById('start-screen').style.display = 'none';
+            startScreen.style.display = 'none';
             initGame();
-        });
+        }
+
+        startScreen.addEventListener('click', startGame);
+
+        startScreen.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            startGame();
+        }, { passive: false });
 
         // ==========================================
         // 音声ファイルを事前読み込み
@@ -413,7 +407,7 @@
                 checkMatch(piece, initX, initY);
             });
 
-            // マウス操作
+            // PCマウス操作
             piece.addEventListener('mousedown', (e) => {
                 isDragging = true;
 
@@ -564,7 +558,7 @@
         resetBtn.addEventListener('mouseleave', endReset);
 
         window.addEventListener('resize', () => {
-            if (document.getElementById('start-screen').style.display === 'none') {
+            if (startScreen.style.display === 'none') {
                 initGame();
             }
         });
